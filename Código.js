@@ -1,6 +1,6 @@
 const systemDate = Utilities.formatDate(new Date(), "GMT-3", "yyyy-MM-dd")
 
-const numCourse = 'TEST'
+const numCourse = 'TEST2'
 
 const attendanceSpName = 'attendance_' + numCourse
 const gradeSpName = 'grade_' + numCourse
