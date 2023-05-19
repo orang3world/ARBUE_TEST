@@ -98,13 +98,13 @@ function onOpen() {
   //-----------------------------------------------------------------------------
 
   SpreadsheetApp.getUi()
-    .createMenu('ACTUALIZAR')
-    .addItem('CARGAR', 'renewingData')
+    .createMenu('ARBUE')
+    .addItem('CARGAR datos', 'renewingData')
     .addSeparator()
-    .addItem('COPIA p/ admin', 'backoffice')
+    .addItem('GENERAR backoffice', 'backoffice')
     .addSeparator()
     .addSubMenu(SpreadsheetApp.getUi().createMenu('EMAIL')
-      .addItem('RECOPILACION', 'undoneKc')
+      .addItem('GENERAR informe', 'undoneKc')
       .addSeparator()
       .addItem('ENVIAR', 'informeAcademico')
       .addSeparator())
@@ -117,6 +117,10 @@ Logger.log(update)
 //-----------------------------------------------------------------------------
 function backoffice() {
   //-----------------------------------------------------------------------------
+
+  SpreadsheetApp.getActiveSpreadsheet().toast(
+    'Envio de copia de la informacion actualizada'
+    , 'CONPARTIENDO backoffice');
 
   var sTarget = spBackofficeAccess
   var sSource = spAttGradeAccess
@@ -139,11 +143,21 @@ function backoffice() {
   ssTarget2.setName("kc_asist")
   ssTarget0.getRange(1, 8).setValue("Update " + '\n' + update)
   ssTarget0.getRange(1, 1).setValue(courseName)
+
+  return (SpreadsheetApp.getActiveSpreadsheet().toast(
+    'Se completo el envio de la informacion a la planilla Backoffice'
+    , 'BACKOFFICE enviado')
+    )
 }
 
 //-----------------------------------------------------------------------------
 function undoneKc() {
   //-----------------------------------------------------------------------------
+
+  SpreadsheetApp.getActiveSpreadsheet().toast(
+    'Recopilando informacion de asistencia y de KCs '
+    , 'GENERANDO Informe Academico ...');
+
   var borrarDatos = ssUpdateKc.getRange(2, 1, ssUpdateKc.getLastRow(), ssUpdateKc.getLastColumn()).clearContent();
   dataRange.forEach(function (indice) {
     var cellEmail = ssUpdateKc.getRange(ssUpdateKc.getLastRow() + 1, 1);
@@ -164,7 +178,7 @@ function undoneKc() {
     var pApproval = 0.7
     //-----------------------------------------------------------------------------
     cellEmail.setValue(indice[3]);
-    cellStudent.setValue(indice[1]);
+    cellStudent.setValue(indice[0]+" "+indice[1]);
     cellAttendance.setValue((indice[4] * 100).toFixed(0));
     cellKcOk.setValue((indice[5] * 100).toFixed(0));
     //-----------------------------------------------------------------------------
@@ -212,12 +226,18 @@ function undoneKc() {
 
   var cellUpdateDate = ssUpdateKc.getRange(2, 11);
   cellUpdateDate.setValue(new Date());
+
+  return (SpreadsheetApp.getActiveSpreadsheet().toast(
+    'Se han generado los informes individuales para cada estudiante'
+    , 'INFORME Academico completado'))
 }
 
 //-----------------------------------------------------------------------------
 function informeAcademico() {
   //-----------------------------------------------------------------------------
-
+  SpreadsheetApp.getActiveSpreadsheet().toast(
+    'Inicio del envio de e-mails personalizados '
+    , 'ENVIANDO Informe Academico ...');
   /* array datas in update-kc ----*/
   var dataRangeUPDATEKC = ssUpdateKc.getRange(2, 1, ssUpdateKc.getLastRow() - 1, ssUpdateKc.getLastColumn()).getValues()
 
@@ -270,6 +290,9 @@ generar html en una sola linea */
       /* send email to each student -*/
       GmailApp.sendEmail(email, new_subject, empty_msj, { cc: ccemail, attachments: body_html });
     })
+  return (SpreadsheetApp.getActiveSpreadsheet().toast(
+    'todos los informes academicos han sido enviados '
+    , 'FINALIZADO el envio de e-mails'))
 }
 
 //-----------------------------------------------------------------------------
