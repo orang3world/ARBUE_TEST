@@ -11,11 +11,10 @@ const columnas = 109;
 const systemDate = Utilities.formatDate(new Date(), "GMT-3", "yyyyMMdd")
 const update = Utilities.formatDate(new Date(), "GMT-3", "dd MMM HH:mm")
 
-// Names of incoming Folders
+// Name's Folders
 const sourceFolderName = 'FILE_INCOMING_' + numCourse
 const storageFolderName = 'STORAGE_' + numCourse
 
-// Names of target Folders
 const attendanceBackupFolder = 'ATTENDANCE_BACKUP_' + numCourse
 const gradeBackupFolder = 'GRADE_BACKUP_' + numCourse
 const labBackupFolder = 'LAB_BACKUP_' + numCourse
@@ -69,6 +68,9 @@ const ssReportAccess = spAttAccess.getSheetByName("Report")
 const rangeDataRepor = ssReportAccess.getRange(1, 5, ssReportAccess.getLastRow(), ssReportAccess.getLastColumn() - 4).getValues()
 const ssAll = spAttAccess.getSheets()
 
+// UI
+const ui = SpreadsheetApp.getUi()
+
 // Ranges
 const headerRange = ssKc.getRange(1, 1, 1, columnas).getValues();
 const dataRange = ssKc.getRange(2, 1, numStud, columnas).getValues();
@@ -95,20 +97,23 @@ const labRegex = /Labtime/
 //-----------------------------------------------------------------------------
 
 // Add a custom menu to the active spreadsheet, including a separator and a sub-menu.
-//-----------------------------------------------------------------------------
 function onOpen() {
   //-----------------------------------------------------------------------------
 
-  SpreadsheetApp.getUi()
+  ui
     .createMenu('ARBUE')
     .addItem('CARGAR datos', 'renewingData')
     .addSeparator()
     .addItem('GENERAR backoffice', 'backoffice')
     .addSeparator()
-    .addSubMenu(SpreadsheetApp.getUi().createMenu('EMAIL')
+    .addSubMenu(ui.createMenu('EMAIL')
       .addItem('GENERAR informe', 'undoneKc')
       .addSeparator()
       .addItem('ENVIAR', 'informeAcademico')
+      .addSeparator())
+    .addSeparator()
+    .addSubMenu(ui.createMenu('AVANZADO')
+      .addItem('GENESIS', 'genesis')
       .addSeparator())
     .addToUi();
 }
