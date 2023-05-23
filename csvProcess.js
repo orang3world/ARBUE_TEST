@@ -65,26 +65,30 @@ const spBackofficeFileId = spBackofficeFileAccess.getId()
 const spBackofficeAccess = SpreadsheetApp.openById(spBackofficeFileId)
 
 // spreadsheet "att_gradeSpName"
-const spAttGradeAccess = SpreadsheetApp.openById(DriveApp.getFilesByName(att_gradeSpName).next().getId())
+const spAttGradeFileAccess = DriveApp.getFilesByName(att_gradeSpName).next()
+const spAttGradeId = spAttGradeFileAccess.getId()
+const spAttGradeAccess = SpreadsheetApp.openById(spAttGradeId)
+// sheets of "att_gradeSpName"
 const ssDkc = spAttGradeAccess.getSheetByName('d-kc')
 const ssKc = spAttGradeAccess.getSheetByName('KC')
 const ssUpdateKc = spAttGradeAccess.getSheetByName('UPDATE-KC');
 
 // spreadsheet "attendanceSpName"
-const spAttAccess = SpreadsheetApp.openById(DriveApp.getFilesByName(attendanceSpName).next().getId())
+const spAttFileAccess = DriveApp.getFilesByName(attendanceSpName).next()
+const spAttId = spAttFileAccess.getId()
+const spAttAccess = SpreadsheetApp.openById(spAttId)
+
 const ssReportAccess = spAttAccess.getSheetByName("Report")
+
 const rangeDataReport = ssReportAccess.getRange(1, 1, ssReportAccess.getLastRow(), ssReportAccess.getLastColumn()).getValues()
 var arrayStData = []
-for (let i=0;i<rangeDataReport.length;i++) {
-  arrayStData.push(rangeDataReport[i].splice(0,4))
+for (let i = 0; i < rangeDataReport.length; i++) {
+  arrayStData.push(rangeDataReport[i].splice(0, 4))
 }
+
 const numStud = arrayStData.length - 1
 
-//const arrayStData = rangeDataReport.splice(0,3)
 const ssAll = spAttAccess.getSheets()
-
-// UI
-const ui = SpreadsheetApp.getUi()
 
 // Ranges
 const headerRange = ssKc.getRange(1, 1, 1, columnas).getValues();
@@ -114,7 +118,7 @@ const labRegex = /Labtime/
 //-----------------------------------------------------------------------------
 function onOpen() {
   //-----------------------------------------------------------------------------
-const ui = SpreadsheetApp.getUi()
+  const ui = SpreadsheetApp.getUi()
 
   ui
     .createMenu('ARBUE')
@@ -133,6 +137,254 @@ const ui = SpreadsheetApp.getUi()
 
 Logger.log(update)
 
+
+//-----------------------------------------------------------------------------
+function renewingData() {
+  //-----------------------------------------------------------------------------
+
+  allProcess()
+  preparSheets()
+  updateAttendanceAndGrade()
+}
+
+//  -----------------------------------------------------------------------------
+function allProcess() {
+  //-----------------------------------------------------------------------------
+  //  MESSAGE FOR USER
+  SpreadsheetApp.getActiveSpreadsheet().toast(
+    'Inicio del procesamiento de los archivos .csv'
+    , 'PROCESANDO...');
+
+  while (csvFiles.hasNext()) {
+    let csvFile = csvFiles.next()
+    let csvFileId = csvFile.getId()
+    let csvFileName = csvFile.getName()
+
+    csvList[csvFileName] = csvFileId    // Object for csv File {name: id}
+  }
+  csvNames = Object.keys(csvList)   // Array for csv File names
+  csvIds = Object.values(csvList)   // Array for csv File ids
+
+  for (let i = 0; i < csvNames.length; i++) {
+
+    console.log("file name : " + csvNames[i])
+
+    // Variables for csv Files of attendance
+
+    if ((csvNames[i].match(attendanceRegex)) != null) {
+      var spId = DriveApp.getFilesByName(attendanceSpName).next().getId()
+      //var regex = /(^.*-)(\d{8})(.*)/
+      //var newString = "$2"
+      var regex = /(.*)(\d{4})-(\d{2})-(\d{2}).*/
+      var newString = "$2$3$4"
+      var encoding = 'UTF-16'
+      var delimiter = '\t'
+      var targetFolderName = attendanceBackupFolder
+
+      // Variables for a csv Files of grade
+
+    } else if ((csvNames[i].match(gradeRegex)) != null) {
+      var spId = DriveApp.getFilesByName(gradeSpName).next().getId()
+      var regex = /(.*)(\d{4})-(\d{2})-(\d{2}).*/
+      var newString = "$2$3$4"
+      var encoding = 'UTF-8'
+      var delimiter = ','
+      var targetFolderName = gradeBackupFolder
+
+      // Variables for a csv Files of lab
+
+    } else if ((csvNames[i].match(labRegex)) != null) {
+      var spId = DriveApp.getFilesByName(labSpName).next().getId()
+      var regex = /.*/
+      var newString = systemDate
+      var encoding = 'UTF-8'
+      var delimiter = ','
+      var targetFolderName = labBackupFolder
+
+      // Variables for a other Files
+
+    } else {
+      var regex = "//"
+      var newString = ""
+      var spId = ""
+      var targetFolderName = restBackupFolder
+    }
+
+    var csvAccess = DriveApp.getFileById(csvIds[i])           // Access csv file
+    var csvData = csvAccess.getBlob().getDataAsString(encoding).valueOf()
+    var csv = Utilities.parseCsv(csvData, delimiter);
+    for (let j = 0; j < 5; j++) {
+      if (typeof (csv[j + 1][1]) != undefined) {
+        var ssName = csv[j + 1][1].replace(regex, newString)
+
+        if (ssName != csvNames[i].replace(/(^.*-)(\d{8})(.*)/, "$2")) {
+              var csvAccess = DriveApp.getFileById(csvIds[i]).setName(csvNames[i].replace(/(^.*-)(\d{8})(.*)/, "$1"+ssName+"$3"))           // Access csv file
+
+          console.log("old title: "+csvNames[i]+" new title: "+csvNames[i].replace(/(^.*-)(\d{8})(.*)/, "$1"+ssName+"$3"))
+        }
+        break
+      }
+    }
+
+    console.log("B2 = " + ssName)
+
+    //var ssName = csvNames[i].replace(regex, newString);       // Sheet Names are replaced with regex names
+    var targetFolderAccess = DriveApp.getFoldersByName(targetFolderName)  // Access target folder
+
+    console.log("ssName with regex : " + ssName)
+
+    if (spId != "") {
+
+      var spAccess = SpreadsheetApp.openById(spId)
+
+      if (!spAccess.getSheetByName(ssName)) {                 // Create a Sheet if she not exist
+        spAccess.insertSheet(ssName);
+      }
+
+      var ssAccess = spAccess.getSheetByName(ssName)
+      ssAccess.clearContents()
+
+      // Load Data of csv File in to sheet
+
+      var success = ssAccess.getRange(1, 1, csv.length, csv[0].length).setValues(csv);
+
+      // If a load data is successly, moves csv file to backup folder
+      if (success && targetFolderAccess.hasNext()) {
+        csvAccess.moveTo(targetFolderAccess.next())
+      }
+
+    } else {
+      csvAccess.moveTo(targetFolderAccess.next())
+    }
+  }
+  //  MESSAGE FOR USER
+  return (SpreadsheetApp.getActiveSpreadsheet().toast(
+    'Archivos procesados:\n' + csvNames.toString()
+    , 'PROCESAMIENTO CONCLUIDO', 3)
+  )
+}
+
+// Ordenamiento de las hojas de cada planilla
+/*---------------------------------------------------------------------------*/
+function preparSheets() {
+  /*---------------------------------------------------------------------------*/
+
+  for (i = 0; i < spNames.length; i++) {
+    var spFullId = DriveApp.getFilesByName(spNames[i]).next().getId()
+    var spFullAccess = SpreadsheetApp.openById(spFullId)
+    var sss = spFullAccess.getSheets()
+    if (!spFullAccess.setActiveSheet(spFullAccess.getSheetByName("Report"))) {
+      var ssReport = sss[0].setName("Report")
+    } else {
+      var ssReport = spFullAccess.setActiveSheet(spFullAccess.getSheetByName("Report"));
+    }
+    sheetNames = []
+    for (j = 0; j < sss.length; j++) {
+      sheetNames.push(sss[j].getName());
+    }
+    sheetNames.sort().reverse();
+
+    for (var k = 0; k < sheetNames.length; k++) {
+      spFullAccess.setActiveSheet(spFullAccess.getSheetByName(sheetNames[k]));
+      spFullAccess.moveActiveSheet(k + 1);
+    }
+    spFullAccess.setActiveSheet(spFullAccess.getSheetByName("Report"));
+    spFullAccess.moveActiveSheet(1);
+
+    // default data for Report sheet
+    ssReport.getRange(1, 1, arrayStData.length, 4).setValues(arrayStData)
+    // delete header of columns
+    var reportRangeHeaders = ssReport.getRange(1, 5, 1, sheetNames.length - 1)
+    ssReport.getRange(1, 5, 1, ssReport.getLastColumn()).clearContent()
+    // complete header of columns with sheet names
+    reportRangeHeaders.setValues([sheetNames.slice(1)])
+  }
+}
+
+/*---------------------------------------------------------------------------*/
+function updateAttendanceAndGrade() {
+  /*---------------------------------------------------------------------------*/
+  //  MESSAGE FOR USER
+  SpreadsheetApp.getActiveSpreadsheet().toast(
+    'Inicio de la carga de nuevos datos'
+    , 'ACTUALIZANDO esta planilla ...');
+
+  const ssGradeLast = spGradeAccess.getSheets()[1]
+  const arrayGradeData = ssGradeLast.getDataRange().getValues()
+
+  var ssDataRange = []
+  var ssDateName = []
+  var course = {}
+  // ---------------------------------------------------------------- Array with names of all ss 
+
+  for (let h = 1; h <= (ssAll.length) - 1; h++) {
+    ssDateName.push(ssAll[h].getName())
+  }
+  const reportRangeHeaders = ssReportAccess.getRange(1, 5, 1, ssDateName.length)
+  reportRangeHeaders.setValues([ssDateName])
+
+  console.log(reportRangeHeaders)
+
+  for (var i = 0; i < ssDateName.length; i++) {
+
+    var emails = {}
+    var dte = ssDateName[i] //name of a sheet
+    var ssAccess = spAttAccess.getSheetByName(dte) // Sheet access by your name
+    var ssAccessReport = spAttAccess.getSheetByName('Report') // Sheet access by your name
+
+    // ------------------------------------------------------ Array with data in everyone sheet
+
+    var ssDataRange = ssAccess.getRange(2, 8, ssAccess.getLastRow() - 1, 3).getValues()
+
+    for (let j = 0; j < ssDataRange.length; j++) {
+
+      var email = ssDataRange[j][0]
+      var sT = new Date(ssDataRange[j][1]) / 60000 // minutes
+      var eT = new Date(ssDataRange[j][2]) / 60000 // minutes
+
+      if (!emails[email]) {
+        Object.assign(emails, { [email]: { [sT]: eT } })
+      } else {
+        Object.assign(emails[email], { [sT]: eT })
+      }
+
+    }
+
+    Object.assign(course, { [dte]: emails })
+    var reportEmails = ssAccessReport.getRange(2, 4, ssAccessReport.getLastRow() - 1, 1).getValues()
+
+    var clearColumn = ssAccessReport.getRange(2, i + 1 + 4, ssAccessReport.getLastRow() - 1, 1).clearContent()
+
+
+    for (let k = 0; k < reportEmails.length; k++) {
+
+      var eMail = reportEmails[k][0]
+
+      if (course[dte][eMail]) {
+        var sTList = Object.keys(course[dte][eMail]).sort()
+        ssAccessReport.getRange(k + 2, i + 1 + 4).setValue(1)
+      } else {
+        ssAccessReport.getRange(k + 2, i + 1 + 4).setValue(0)
+      }
+
+    }
+  }
+  spAttGradeAccess.getSheetByName('ASIST-WEBEX').getRange(1, 1, arrayStData.length, 4).setValues(arrayStData)
+  spAttGradeAccess.getSheetByName('ASIST-WEBEX').getRange(1, 8, ssReportAccess.getLastRow(), ssReportAccess.getLastColumn() - 4).setValues(rangeDataReport)
+
+  spAttGradeAccess.getSheetByName('KC').getRange(1, 1, arrayStData.length, 4).setValues(arrayStData)
+
+  ssDkc.clearContents()
+  ssDkc.getRange(1, 1, ssGradeLast.getLastRow(), ssGradeLast.getLastColumn()).setValues(arrayGradeData)
+  var ssGradeLastName = ssGradeLast.getName()
+  ssKc.getRange(1, 2).setValue(ssGradeLastName)
+
+  //  MESSAGE FOR USER
+  return (SpreadsheetApp.getActiveSpreadsheet().toast(
+    'Planilla lista para compartir. ( Nota : recuerde agregar los encabezados'
+    + ' de los KC mas recientes)'
+    , 'ACTUALIZACION TERMINADA', 7))
+}
 //-----------------------------------------------------------------------------
 function backoffice() {
   //-----------------------------------------------------------------------------
@@ -163,6 +415,7 @@ function backoffice() {
   ssTarget0.getRange(1, 8).setValue("Update " + '\n' + update)
   ssTarget0.getRange(1, 1).setValue(courseName)
 
+  //  MESSAGE FOR USER
   return (SpreadsheetApp.getActiveSpreadsheet().toast(
     'Se completo el envio de la informacion a la planilla Backoffice'
     , 'BACKOFFICE enviado')
@@ -172,7 +425,7 @@ function backoffice() {
 //-----------------------------------------------------------------------------
 function undoneKc() {
   //-----------------------------------------------------------------------------
-
+  //  MESSAGE FOR USER
   SpreadsheetApp.getActiveSpreadsheet().toast(
     'Recopilando informacion de asistencia y de KCs '
     , 'GENERANDO Informe Academico ...');
@@ -251,6 +504,7 @@ function undoneKc() {
   var cellUpdateDate = ssUpdateKc.getRange(2, 11);
   cellUpdateDate.setValue(new Date());
   //-----------------------------------------------------------------------------
+  //  MESSAGE FOR USER
   return (SpreadsheetApp.getActiveSpreadsheet().toast(
     'Se han generado los informes individuales para cada estudiante'
     , 'INFORME Academico completado'))
@@ -259,6 +513,7 @@ function undoneKc() {
 //-----------------------------------------------------------------------------
 function informeAcademico() {
   //-----------------------------------------------------------------------------
+  //  MESSAGE FOR USER
   SpreadsheetApp.getActiveSpreadsheet().toast(
     'Inicio del envio de e-mails personalizados '
     , 'ENVIANDO Informe Academico ...');
@@ -324,236 +579,8 @@ function informeAcademico() {
       });
     }
   )
-
+  //  MESSAGE FOR USER
   return (SpreadsheetApp.getActiveSpreadsheet().toast(
     'todos los informes academicos han sido enviados '
     , 'FINALIZADO el envio de e-mails'))
-}
-
-//-----------------------------------------------------------------------------
-function renewingData() {
-  //-----------------------------------------------------------------------------
-
-  allProcess()
-  preparSheets()
-  updateAttendanceAndGrade()
-}
-
-//  -----------------------------------------------------------------------------
-function allProcess() {
-  //-----------------------------------------------------------------------------
-  SpreadsheetApp.getActiveSpreadsheet().toast(
-    'Inicio del procesamiento de los archivos .csv'
-    , 'PROCESANDO...');
-  while (csvFiles.hasNext()) {
-    let csvFile = csvFiles.next()
-    let csvFileId = csvFile.getId()
-    let csvFileName = csvFile.getName()
-
-    csvList[csvFileName] = csvFileId    // Object for csv File {name: id}
-  }
-  csvNames = Object.keys(csvList)   // Array for csv File names
-  csvIds = Object.values(csvList)   // Array for csv File ids
-
-  for (i = 0; i < csvNames.length; i++) {
-
-    console.log("file name : " + csvNames[i])
-
-    // Variables for csv Files of attendance
-
-    if ((csvNames[i].match(attendanceRegex)) != null) {
-      var spId = DriveApp.getFilesByName(attendanceSpName).next().getId()
-      var regex = /(^.*-)(\d{8})(.*)/
-      var newString = "$2"
-      var encoding = 'UTF-16'
-      var delimiter = '\t'
-      var targetFolderName = attendanceBackupFolder
-
-      // Variables for a csv Files of grade
-
-    } else if ((csvNames[i].match(gradeRegex)) != null) {
-      var spId = DriveApp.getFilesByName(gradeSpName).next().getId()
-      var regex = /(.*)(\d{4})-(\d{2})-(\d{2}).*/
-      var newString = "$2$3$4"
-      var encoding = 'UTF-8'
-      var delimiter = ','
-      var targetFolderName = gradeBackupFolder
-
-      // Variables for a csv Files of lab
-
-    } else if ((csvNames[i].match(labRegex)) != null) {
-      var spId = DriveApp.getFilesByName(labSpName).next().getId()
-      var regex = /.*/
-      var newString = systemDate
-      var encoding = 'UTF-8'
-      var delimiter = ','
-      var targetFolderName = labBackupFolder
-
-      // Variables for a other Files
-
-    } else {
-      var regex = "//"
-      var newString = ""
-      var spId = ""
-      var targetFolderName = restBackupFolder
-    }
-
-    console.log("loop : " + i)
-
-    var ssName = csvNames[i].replace(regex, newString);       // Sheet Names are replaced with regex names
-    var csvAccess = DriveApp.getFileById(csvIds[i])
-    var targetFolderAccess = DriveApp.getFoldersByName(targetFolderName)
-
-    console.log("ssName with regex : " + ssName)
-
-    if (spId != "") {
-
-      var spAccess = SpreadsheetApp.openById(spId)
-
-      if (!spAccess.getSheetByName(ssName)) {                 // Create a Sheet if she not exist
-        spAccess.insertSheet(ssName);
-      }
-
-      var ssAccess = spAccess.getSheetByName(ssName)
-      ssAccess.clearContents()
-
-      // Load Data of csv File in to sheet
-      var csvData = csvAccess.getBlob().getDataAsString(encoding).valueOf()
-      var csv = Utilities.parseCsv(csvData, delimiter);
-      var success = ssAccess.getRange(1, 1, csv.length, csv[0].length).setValues(csv);
-
-      // If a load data is successly, moves csv file to backup folder
-      if (success && targetFolderAccess.hasNext()) {
-        csvAccess.moveTo(targetFolderAccess.next())
-      }
-
-    } else {
-      csvAccess.moveTo(targetFolderAccess.next())
-    }
-  }
-  return (SpreadsheetApp.getActiveSpreadsheet().toast(
-    'Archivos procesados:\n' + csvNames.toString()
-    , 'PROCESAMIENTO CONCLUIDO', 3)
-  )
-}
-
-// Ordenamiento de las hojas de cada planilla
-/*---------------------------------------------------------------------------*/
-function preparSheets() {
-  /*---------------------------------------------------------------------------*/
-
-  for (i = 0; i < spNames.length; i++) {
-    var spFullId = DriveApp.getFilesByName(spNames[i]).next().getId()
-    var spFullAccess = SpreadsheetApp.openById(spFullId)
-    var sss = spFullAccess.getSheets()
-    if (!spFullAccess.setActiveSheet(spFullAccess.getSheetByName("Report"))) {
-      var ssReport = sss[0].setName("Report")
-    } else {
-      var ssReport = spFullAccess.setActiveSheet(spFullAccess.getSheetByName("Report"));
-    }
-    sheetNames = []
-    for (j = 0; j < sss.length; j++) {
-      sheetNames.push(sss[j].getName());
-    }
-    sheetNames.sort().reverse();
-
-    for (var k = 0; k < sheetNames.length; k++) {
-      spFullAccess.setActiveSheet(spFullAccess.getSheetByName(sheetNames[k]));
-      spFullAccess.moveActiveSheet(k + 1);
-    }
-    spFullAccess.setActiveSheet(spFullAccess.getSheetByName("Report"));
-    spFullAccess.moveActiveSheet(1);
-
-    // default data for Report sheet
-    ssReport.getRange(1, 1, arrayStData.length, 4).setValues(arrayStData)
-    // delete header of columns
-    var reportRangeHeaders = ssReport.getRange(1, 5, 1, sheetNames.length - 1)
-    ssReport.getRange(1, 5, 1, ssReport.getLastColumn()).clearContent()
-    // complete header of columns with sheet names
-    reportRangeHeaders.setValues([sheetNames.slice(1)])
-  }
-}
-
-/*---------------------------------------------------------------------------*/
-function updateAttendanceAndGrade() {
-  /*---------------------------------------------------------------------------*/
-
-  SpreadsheetApp.getActiveSpreadsheet().toast(
-    'Inicio de la carga de nuevos datos'
-    , 'ACTUALIZANDO esta planilla ...');
-
-  const ssGradeLast = spGradeAccess.getSheets()[1]
-  const arrayGradeData = ssGradeLast.getDataRange().getValues()
-
-  var ssDataRange = []
-  var ssDateName = []
-  var course = {}
-  // ---------------------------------------------------------------- Array with names of all ss 
-
-  for (let h = 1; h <= (ssAll.length) - 1; h++) {
-    ssDateName.push(ssAll[h].getName())
-  }
-  const reportRangeHeaders = ssReportAccess.getRange(1, 5, 1, ssDateName.length)
-  reportRangeHeaders.setValues([ssDateName])
-
-  console.log(reportRangeHeaders)
-
-  for (var i = 0; i < ssDateName.length; i++) {
-
-    var emails = {}
-    var dte = ssDateName[i] //name of a sheet
-    var ssAccess = spAttAccess.getSheetByName(dte) // Sheet access by your name
-    var ssAccessReport = spAttAccess.getSheetByName('Report') // Sheet access by your name
-
-    // ------------------------------------------------------ Array with data in everyone sheet
-
-    var ssDataRange = ssAccess.getRange(2, 8, ssAccess.getLastRow() - 1, 3).getValues()
-
-    for (let j = 0; j < ssDataRange.length; j++) {
-
-      var email = ssDataRange[j][0]
-      var sT = new Date(ssDataRange[j][1]) / 60000 // minutes
-      var eT = new Date(ssDataRange[j][2]) / 60000 // minutes
-
-      if (!emails[email]) {
-        Object.assign(emails, { [email]: { [sT]: eT } })
-      } else {
-        Object.assign(emails[email], { [sT]: eT })
-      }
-
-    }
-
-    Object.assign(course, { [dte]: emails })
-    var reportEmails = ssAccessReport.getRange(2, 4, ssAccessReport.getLastRow() - 1, 1).getValues()
-
-    var clearColumn = ssAccessReport.getRange(2, i + 1 + 4, ssAccessReport.getLastRow() - 1, 1).clearContent()
-
-
-    for (let k = 0; k < reportEmails.length; k++) {
-
-      var eMail = reportEmails[k][0]
-
-      if (course[dte][eMail]) {
-        var sTList = Object.keys(course[dte][eMail]).sort()
-        ssAccessReport.getRange(k + 2, i + 1 + 4).setValue(1)
-      } else {
-        ssAccessReport.getRange(k + 2, i + 1 + 4).setValue(0)
-      }
-
-    }
-  }
-  spAttGradeAccess.getSheetByName('ASIST-WEBEX').getRange(1, 1, arrayStData.length, 4).setValues(arrayStData)
-  spAttGradeAccess.getSheetByName('ASIST-WEBEX').getRange(1, 8, ssReportAccess.getLastRow(), ssReportAccess.getLastColumn() - 4).setValues(rangeDataReport)
-
-  spAttGradeAccess.getSheetByName('KC').getRange(1, 1, arrayStData.length, 4).setValues(arrayStData)
-
-  ssDkc.clearContents()
-  ssDkc.getRange(1, 1, ssGradeLast.getLastRow(), ssGradeLast.getLastColumn()).setValues(arrayGradeData)
-  var ssGradeLastName = ssGradeLast.getName()
-  ssKc.getRange(1, 2).setValue(ssGradeLastName)
-
-  return (SpreadsheetApp.getActiveSpreadsheet().toast(
-    'Planilla lista para compartir. ( Nota : recuerde agregar los encabezados'
-    + ' de los KC mas recientes)'
-    , 'ACTUALIZACION TERMINADA', 7))
 }
