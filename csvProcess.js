@@ -30,20 +30,25 @@ const backofficeSpName = 'backoffice_' + numCourse
 const htmlSpName = 'html_' + numCourse
 
 // Access 
+
+// Folders
 const csvFolderAccess = DriveApp.getFoldersByName(sourceFolderName).next()
 const csvFiles = csvFolderAccess.getFiles()
 
-const studentDataFileAccess = DriveApp.getFilesByName(studentSpName).next()
+// spreadsheet "studentData"
+/*const studentDataFileAccess = DriveApp.getFilesByName(studentSpName).next()
 const studentDataFileId = studentDataFileAccess.getId()
 const spStDataAccess = SpreadsheetApp.openById(studentDataFileId)
 const numStud = spStDataAccess.getLastRow() - 1
 const arrayStData = spStDataAccess.getSheets()[0].getRange(1, 1, spStDataAccess.getLastRow
-  (), 4).getValues()
+  (), 4).getValues()*/
 
+// spreadsheet "gradeSpName"
 const spGradeFileAccess = DriveApp.getFilesByName(gradeSpName).next()
 const spGradeFileId = spGradeFileAccess.getId()
 const spGradeAccess = SpreadsheetApp.openById(spGradeFileId)
 
+// spreadsheet "htmlSpName"
 const spHtmlFileAccess = DriveApp.getFilesByName(htmlSpName).next()
 const spHtmlFileId = spHtmlFileAccess.getId()
 const spHtmlAccess = SpreadsheetApp.openById(spHtmlFileId)
@@ -54,18 +59,28 @@ const dataRangeBody = ssBodyHtml.getDataRange().getValues()
 const dataRangeSignature = ssSignatureHtml.getDataRange().getValues()
 const dataRangeInstructorData = ssInstructorDataHtml.getDataRange().getValues()
 
+// spreadsheet "backofficeSpName"
 const spBackofficeFileAccess = DriveApp.getFilesByName(backofficeSpName).next()
 const spBackofficeFileId = spBackofficeFileAccess.getId()
 const spBackofficeAccess = SpreadsheetApp.openById(spBackofficeFileId)
 
+// spreadsheet "att_gradeSpName"
 const spAttGradeAccess = SpreadsheetApp.openById(DriveApp.getFilesByName(att_gradeSpName).next().getId())
 const ssDkc = spAttGradeAccess.getSheetByName('d-kc')
 const ssKc = spAttGradeAccess.getSheetByName('KC')
 const ssUpdateKc = spAttGradeAccess.getSheetByName('UPDATE-KC');
 
+// spreadsheet "attendanceSpName"
 const spAttAccess = SpreadsheetApp.openById(DriveApp.getFilesByName(attendanceSpName).next().getId())
 const ssReportAccess = spAttAccess.getSheetByName("Report")
-const rangeDataRepor = ssReportAccess.getRange(1, 5, ssReportAccess.getLastRow(), ssReportAccess.getLastColumn() - 4).getValues()
+const rangeDataReport = ssReportAccess.getRange(1, 1, ssReportAccess.getLastRow(), ssReportAccess.getLastColumn()).getValues()
+var arrayStData = []
+for (let i=0;i<rangeDataReport.length;i++) {
+  arrayStData.push(rangeDataReport[i].splice(0,4))
+}
+const numStud = arrayStData.length - 1
+
+//const arrayStData = rangeDataReport.splice(0,3)
 const ssAll = spAttAccess.getSheets()
 
 // UI
@@ -94,11 +109,12 @@ const attendanceRegex = /participant/
 const gradeRegex = /Calificaciones/
 //example of csv name = /RESTCUR-000001 ES 23732-1767-a0R4N00000G9qOGUAZ_Labtime_1683209549930.csv/
 const labRegex = /Labtime/
-//-----------------------------------------------------------------------------
 
 // Add a custom menu to the active spreadsheet, including a separator and a sub-menu.
+//-----------------------------------------------------------------------------
 function onOpen() {
   //-----------------------------------------------------------------------------
+const ui = SpreadsheetApp.getUi()
 
   ui
     .createMenu('ARBUE')
@@ -110,10 +126,6 @@ function onOpen() {
       .addItem('GENERAR informe', 'undoneKc')
       .addSeparator()
       .addItem('ENVIAR', 'informeAcademico')
-      .addSeparator())
-    .addSeparator()
-    .addSubMenu(ui.createMenu('AVANZADO')
-      .addItem('GENESIS', 'genesis')
       .addSeparator())
     .addToUi();
 }
@@ -455,8 +467,8 @@ function preparSheets() {
     // default data for Report sheet
     ssReport.getRange(1, 1, arrayStData.length, 4).setValues(arrayStData)
     // delete header of columns
-    ssReport.getRange(1, 5, 1, ssReport.getLastColumn()).clearContent()
     var reportRangeHeaders = ssReport.getRange(1, 5, 1, sheetNames.length - 1)
+    ssReport.getRange(1, 5, 1, ssReport.getLastColumn()).clearContent()
     // complete header of columns with sheet names
     reportRangeHeaders.setValues([sheetNames.slice(1)])
   }
@@ -531,7 +543,7 @@ function updateAttendanceAndGrade() {
     }
   }
   spAttGradeAccess.getSheetByName('ASIST-WEBEX').getRange(1, 1, arrayStData.length, 4).setValues(arrayStData)
-  spAttGradeAccess.getSheetByName('ASIST-WEBEX').getRange(1, 8, ssReportAccess.getLastRow(), ssReportAccess.getLastColumn() - 4).setValues(rangeDataRepor)
+  spAttGradeAccess.getSheetByName('ASIST-WEBEX').getRange(1, 8, ssReportAccess.getLastRow(), ssReportAccess.getLastColumn() - 4).setValues(rangeDataReport)
 
   spAttGradeAccess.getSheetByName('KC').getRange(1, 1, arrayStData.length, 4).setValues(arrayStData)
 
