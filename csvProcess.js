@@ -3,7 +3,7 @@
 
 //-----------------------------------------------------------------------------
 
-const numCourse = 'TEST'
+const numCourse = '0'
 const courseName = "ARBUE_" + numCourse
 //const numStud = 45
 
@@ -35,14 +35,6 @@ const htmlSpName = 'html_' + numCourse
 const csvFolderAccess = DriveApp.getFoldersByName(sourceFolderName).next()
 const csvFiles = csvFolderAccess.getFiles()
 
-// spreadsheet "studentData"
-/*const studentDataFileAccess = DriveApp.getFilesByName(studentSpName).next()
-const studentDataFileId = studentDataFileAccess.getId()
-const spStDataAccess = SpreadsheetApp.openById(studentDataFileId)
-const numStud = spStDataAccess.getLastRow() - 1
-const arrayStData = spStDataAccess.getSheets()[0].getRange(1, 1, spStDataAccess.getLastRow
-  (), 4).getValues()*/
-
 // spreadsheet "gradeSpName"
 const spGradeFileAccess = DriveApp.getFilesByName(gradeSpName).next()
 const spGradeFileId = spGradeFileAccess.getId()
@@ -55,9 +47,7 @@ const spHtmlAccess = SpreadsheetApp.openById(spHtmlFileId)
 const ssBodyHtml = spHtmlAccess.getSheetByName('BODY')
 const ssSignatureHtml = spHtmlAccess.getSheetByName('SIGNATURE')
 const ssInstructorDataHtml = spHtmlAccess.getSheetByName('INSTRUCTOR_DATA')
-const dataRangeBody = ssBodyHtml.getDataRange().getValues()
-const dataRangeSignature = ssSignatureHtml.getDataRange().getValues()
-const dataRangeInstructorData = ssInstructorDataHtml.getDataRange().getValues()
+
 
 // spreadsheet "backofficeSpName"
 const spBackofficeFileAccess = DriveApp.getFilesByName(backofficeSpName).next()
@@ -68,6 +58,7 @@ const spBackofficeAccess = SpreadsheetApp.openById(spBackofficeFileId)
 const spAttGradeFileAccess = DriveApp.getFilesByName(att_gradeSpName).next()
 const spAttGradeId = spAttGradeFileAccess.getId()
 const spAttGradeAccess = SpreadsheetApp.openById(spAttGradeId)
+
 // sheets of "att_gradeSpName"
 const ssDkc = spAttGradeAccess.getSheetByName('d-kc')
 const ssKc = spAttGradeAccess.getSheetByName('KC')
@@ -77,24 +68,13 @@ const ssUpdateKc = spAttGradeAccess.getSheetByName('UPDATE-KC');
 const spAttFileAccess = DriveApp.getFilesByName(attendanceSpName).next()
 const spAttId = spAttFileAccess.getId()
 const spAttAccess = SpreadsheetApp.openById(spAttId)
-
-const ssReportAccess = spAttAccess.getSheetByName("Report")
-
-const rangeDataReport = ssReportAccess.getRange(1, 1, ssReportAccess.getLastRow(), ssReportAccess.getLastColumn()).getValues()
-var arrayStData = []
-for (let i = 0; i < rangeDataReport.length; i++) {
-  arrayStData.push(rangeDataReport[i].splice(0, 4))
-}
-
-const numStud = arrayStData.length - 1
-
+const ssReportAttAccess = spAttAccess.getSheetByName("Report")
 const ssAll = spAttAccess.getSheets()
-
-// Ranges
-const headerRange = ssKc.getRange(1, 1, 1, columnas).getValues();
-const dataRange = ssKc.getRange(2, 1, numStud, columnas).getValues();
-const possiblePointsRange = ssKc.getRange(numStud + 3, 1, 1, columnas).getValues();
-
+/*
+var rangeDataReport,
+  arrayStData,
+  arrayGradeData
+*/
 // Arrays and Object
 const spNames = [attendanceSpName, gradeSpName, labSpName]
 var sheetNames = []
@@ -142,13 +122,12 @@ Logger.log(update)
 function renewingData() {
   //-----------------------------------------------------------------------------
 
-  allProcess()
-  preparSheets()
+  fileProcess()
   updateAttendanceAndGrade()
 }
 
 //  -----------------------------------------------------------------------------
-function allProcess() {
+function fileProcess() {
   //-----------------------------------------------------------------------------
   //  MESSAGE FOR USER
   SpreadsheetApp.getActiveSpreadsheet().toast(
@@ -168,19 +147,34 @@ function allProcess() {
   for (let i = 0; i < csvNames.length; i++) {
 
     console.log("file name : " + csvNames[i])
+    var csvAccess = DriveApp.getFileById(csvIds[i])           // Access csv file
 
     // Variables for csv Files of attendance
 
     if ((csvNames[i].match(attendanceRegex)) != null) {
       var spId = DriveApp.getFilesByName(attendanceSpName).next().getId()
-      //var regex = /(^.*-)(\d{8})(.*)/
-      //var newString = "$2"
-      var regex = /(.*)(\d{4})-(\d{2})-(\d{2}).*/
+      var regex = /(.*)(\d{4})-(\d{2})-(\d{2}).*/  // pattern for inside date
       var newString = "$2$3$4"
       var encoding = 'UTF-16'
       var delimiter = '\t'
       var targetFolderName = attendanceBackupFolder
+      var csvData = csvAccess.getBlob().getDataAsString(encoding).valueOf()
+      var csv = Utilities.parseCsv(csvData, delimiter);
 
+      for (let j = 0; j < 5; j++) {
+        if (typeof (csv[j + 1][1]) != undefined) {
+          var ssName = csv[j + 1][1].replace(regex, newString)
+
+          if (ssName != csvNames[i].replace(/(^.*-)(\d{8})(.*)/, "$2")) {
+            var csvAccess = DriveApp.getFileById(csvIds[i]).setName(csvNames[i]
+              .replace(/(^.*-)(\d{8})(.*)/, "$1" + ssName + "$3"))           // Rename csv file
+
+            console.log("old title: " + csvNames[i] + " new title: " + csvNames[i]
+              .replace(/(^.*-)(\d{8})(.*)/, "$1" + ssName + "$3"))
+          }
+          break
+        }
+      }
       // Variables for a csv Files of grade
 
     } else if ((csvNames[i].match(gradeRegex)) != null) {
@@ -190,7 +184,9 @@ function allProcess() {
       var encoding = 'UTF-8'
       var delimiter = ','
       var targetFolderName = gradeBackupFolder
-
+      var csvData = csvAccess.getBlob().getDataAsString(encoding).valueOf()
+      var csv = Utilities.parseCsv(csvData, delimiter);
+      var ssName = csvNames[i].replace(regex, newString)
       // Variables for a csv Files of lab
 
     } else if ((csvNames[i].match(labRegex)) != null) {
@@ -200,6 +196,9 @@ function allProcess() {
       var encoding = 'UTF-8'
       var delimiter = ','
       var targetFolderName = labBackupFolder
+      var csvData = csvAccess.getBlob().getDataAsString(encoding).valueOf()
+      var csv = Utilities.parseCsv(csvData, delimiter);
+      var ssName = csvNames[i].replace(regex, newString)
 
       // Variables for a other Files
 
@@ -208,30 +207,11 @@ function allProcess() {
       var newString = ""
       var spId = ""
       var targetFolderName = restBackupFolder
+      var ssName = csvNames[i].replace(regex, newString)
+
     }
 
-    var csvAccess = DriveApp.getFileById(csvIds[i])           // Access csv file
-    var csvData = csvAccess.getBlob().getDataAsString(encoding).valueOf()
-    var csv = Utilities.parseCsv(csvData, delimiter);
-    for (let j = 0; j < 5; j++) {
-      if (typeof (csv[j + 1][1]) != undefined) {
-        var ssName = csv[j + 1][1].replace(regex, newString)
-
-        if (ssName != csvNames[i].replace(/(^.*-)(\d{8})(.*)/, "$2")) {
-              var csvAccess = DriveApp.getFileById(csvIds[i]).setName(csvNames[i].replace(/(^.*-)(\d{8})(.*)/, "$1"+ssName+"$3"))           // Access csv file
-
-          console.log("old title: "+csvNames[i]+" new title: "+csvNames[i].replace(/(^.*-)(\d{8})(.*)/, "$1"+ssName+"$3"))
-        }
-        break
-      }
-    }
-
-    console.log("B2 = " + ssName)
-
-    //var ssName = csvNames[i].replace(regex, newString);       // Sheet Names are replaced with regex names
     var targetFolderAccess = DriveApp.getFoldersByName(targetFolderName)  // Access target folder
-
-    console.log("ssName with regex : " + ssName)
 
     if (spId != "") {
 
@@ -266,8 +246,30 @@ function allProcess() {
 
 // Ordenamiento de las hojas de cada planilla
 /*---------------------------------------------------------------------------*/
-function preparSheets() {
+function updateAttendanceAndGrade() {
   /*---------------------------------------------------------------------------*/
+  var arrayStData = []
+  var arrayKcData = []
+  var ssGradeLast = spGradeAccess.getSheets()[1]
+  var arrayGradeData = ssGradeLast.getDataRange().getValues()
+  var arrayKcData2 = arrayGradeData.slice(2)
+
+  for (let i = 0; i < arrayGradeData.length; i++) {
+    var familyName = arrayGradeData[i][0].replace(/(^.*), (.*$)/, "$1")
+    var firstName = arrayGradeData[i][0].replace(/(^.*), (.*$)/, "$2")
+    var studentId = arrayGradeData[i][1]
+    var studentEmail = arrayGradeData[i][3]
+    arrayStData.push([[familyName], [firstName], [studentId], [studentEmail]])
+  }
+  arrayStData.splice(0, 2, [['family Name'], ['first Name'], ['student Id'], ['student Email']])
+  arrayStData.pop()
+
+  for (let i = 0; i < arrayKcData2.length; i++) {
+    var row = arrayKcData2[i].slice(6)
+    arrayKcData.push(row)
+  }
+
+  var numStud = arrayStData.length - 1
 
   for (i = 0; i < spNames.length; i++) {
     var spFullId = DriveApp.getFilesByName(spNames[i]).next().getId()
@@ -283,6 +285,7 @@ function preparSheets() {
       sheetNames.push(sss[j].getName());
     }
     sheetNames.sort().reverse();
+    console.log('sheetNames : ' + sheetNames)
 
     for (var k = 0; k < sheetNames.length; k++) {
       spFullAccess.setActiveSheet(spFullAccess.getSheetByName(sheetNames[k]));
@@ -292,39 +295,42 @@ function preparSheets() {
     spFullAccess.moveActiveSheet(1);
 
     // default data for Report sheet
-    ssReport.getRange(1, 1, arrayStData.length, 4).setValues(arrayStData)
+    ssReport.getRange(1, 1, arrayStData.length, arrayStData[0].length).setValues(arrayStData)
     // delete header of columns
-    var reportRangeHeaders = ssReport.getRange(1, 5, 1, sheetNames.length - 1)
     ssReport.getRange(1, 5, 1, ssReport.getLastColumn()).clearContent()
     // complete header of columns with sheet names
-    reportRangeHeaders.setValues([sheetNames.slice(1)])
+    sheetNames.push([''])
+    sheetNames.splice(sheetNames.indexOf('Report'), 1)
+    ssReport.getRange(1, 5, 1, sheetNames.length).setValues([sheetNames])
+    console.log('sheetNames :'+ sheetNames)
+    //else {ssReport.getRange(1, 5, 1, sheetNames.length).setValues([sheetNames])}
   }
-}
-
-/*---------------------------------------------------------------------------*/
-function updateAttendanceAndGrade() {
-  /*---------------------------------------------------------------------------*/
   //  MESSAGE FOR USER
   SpreadsheetApp.getActiveSpreadsheet().toast(
     'Inicio de la carga de nuevos datos'
     , 'ACTUALIZANDO esta planilla ...');
 
-  const ssGradeLast = spGradeAccess.getSheets()[1]
-  const arrayGradeData = ssGradeLast.getDataRange().getValues()
+  var rangeDataReport = ssReportAttAccess
+    .getRange(1, 1, ssReportAttAccess.getLastRow(), ssReportAttAccess.getLastColumn())
+    .getValues()
 
   var ssDataRange = []
   var ssDateName = []
   var course = {}
   // ---------------------------------------------------------------- Array with names of all ss 
-
-  for (let h = 1; h <= (ssAll.length) - 1; h++) {
+  // spreadsheet for ATTENDANCE
+  for (let h = 0; h < (ssAll.length); h++) {
     ssDateName.push(ssAll[h].getName())
+    //ssDateName.splice(0)
   }
-  const reportRangeHeaders = ssReportAccess.getRange(1, 5, 1, ssDateName.length)
-  reportRangeHeaders.setValues([ssDateName])
+  ssDateName.splice(ssDateName.indexOf('Report'), 1)
+  console.log('ssDateName '+ssDateName )
+/*
+  var reportHeaderRange = ssReportAttAccess.getRange(1, 5, 1, ssDateName.length)
+  reportHeaderRange.setValues([ssDateName])
 
-  console.log(reportRangeHeaders)
-
+  console.log(reportHeaderRange)
+*/
   for (var i = 0; i < ssDateName.length; i++) {
 
     var emails = {}
@@ -369,21 +375,48 @@ function updateAttendanceAndGrade() {
 
     }
   }
-  spAttGradeAccess.getSheetByName('ASIST-WEBEX').getRange(1, 1, arrayStData.length, 4).setValues(arrayStData)
-  spAttGradeAccess.getSheetByName('ASIST-WEBEX').getRange(1, 8, ssReportAccess.getLastRow(), ssReportAccess.getLastColumn() - 4).setValues(rangeDataReport)
+  spAttGradeAccess.getSheetByName('ASIST-WEBEX')
+    .getRange(1, 1, arrayStData.length, arrayStData[0].length)
+    .setValues(arrayStData)
+  spAttGradeAccess.getSheetByName('ASIST-WEBEX')
+    .getRange(1, 8, rangeDataReport.length, rangeDataReport[0].length)
+    .setValues(rangeDataReport)
 
-  spAttGradeAccess.getSheetByName('KC').getRange(1, 1, arrayStData.length, 4).setValues(arrayStData)
+  spAttGradeAccess.getSheetByName('KC').getRange(1, 1, arrayStData.length, arrayStData[0].length).setValues(arrayStData)
 
   ssDkc.clearContents()
-  ssDkc.getRange(1, 1, ssGradeLast.getLastRow(), ssGradeLast.getLastColumn()).setValues(arrayGradeData)
+
+  ssDkc.getRange(1, 1, arrayGradeData.length, arrayGradeData[0].length).setValues(arrayGradeData)
+
+  /* if (arrayGradeData.slice(-0, 1) == 'prueba, Estudiante de') {
+     arrayGradeData.pop()
+   }
+ 
+   if (arrayGradeData.slice(0, 1)[0] == 'Points Possible') {
+     var pPossible = arrayGradeData.slice(1, 1)
+     arrayGradeData.splice(1, 1)
+   }
+   if (arrayGradeData[0][0] == 'Student') {
+     arrayGradeData.splice(0, 1)
+   }
+ 
+   arrayGradeData.push(pPossible)
+ 
+   for (let i = 0; i < arrayGradeData.length; i++) {
+     console.log('arrayGradeData[' + i + ']= ' + arrayGradeData[i])
+   }*/
+
+  var dataKc = ssKc.getRange(2, 10, arrayKcData.length, arrayKcData[0].length)
+  dataKc.setValues(arrayKcData)
+
   var ssGradeLastName = ssGradeLast.getName()
   ssKc.getRange(1, 2).setValue(ssGradeLastName)
 
   //  MESSAGE FOR USER
-  return (SpreadsheetApp.getActiveSpreadsheet().toast(
+  SpreadsheetApp.getActiveSpreadsheet().toast(
     'Planilla lista para compartir. ( Nota : recuerde agregar los encabezados'
     + ' de los KC mas recientes)'
-    , 'ACTUALIZACION TERMINADA', 7))
+    , 'ACTUALIZACION TERMINADA', 7)
 }
 //-----------------------------------------------------------------------------
 function backoffice() {
@@ -407,11 +440,11 @@ function backoffice() {
   var ssTarget0 = ssTarget[0]
   var ssTarget1 = ssTarget[1]
   var ssTarget2 = ssTarget[2]
-  var kcAsist = sTarget.getSheetByName("kc_asist")
+  var kcAsist = sTarget.getSheetByName("kc_asist_" + numCourse)
   var rangeTarget2 = ssTarget2.getDataRange()
   var newTarget2 = rangeTarget2.setValues(valuesSource0)
   sTarget.deleteSheet(kcAsist)
-  ssTarget2.setName("kc_asist")
+  ssTarget2.setName("kc_asist_" + numCourse)
   ssTarget0.getRange(1, 8).setValue("Update " + '\n' + update)
   ssTarget0.getRange(1, 1).setValue(courseName)
 
@@ -429,6 +462,12 @@ function undoneKc() {
   SpreadsheetApp.getActiveSpreadsheet().toast(
     'Recopilando informacion de asistencia y de KCs '
     , 'GENERANDO Informe Academico ...');
+
+  var numStud = spGradeAccess.getSheets()[1].getLastRow() - 3
+  console.log("numStud = " + numStud)
+  const headerRange = ssKc.getRange(1, 1, 1, columnas).getValues();
+  const dataRange = ssKc.getRange(2, 1, numStud, columnas).getValues();
+  const possiblePointsRange = ssKc.getRange(numStud + 3, 1, 1, columnas).getValues();
 
   var borrarDatos = ssUpdateKc.getRange(2, 1, ssUpdateKc.getLastRow(), ssUpdateKc.getLastColumn()).clearContent();
   dataRange.forEach(function (indice) {
@@ -517,6 +556,10 @@ function informeAcademico() {
   SpreadsheetApp.getActiveSpreadsheet().toast(
     'Inicio del envio de e-mails personalizados '
     , 'ENVIANDO Informe Academico ...');
+
+  const dataRangeBody = ssBodyHtml.getDataRange().getValues()
+  const dataRangeSignature = ssSignatureHtml.getDataRange().getValues()
+  const dataRangeInstructorData = ssInstructorDataHtml.getDataRange().getValues()
 
   var email_prof = Session.getActiveUser().getEmail();
   var arrayInstructorData = dataRangeInstructorData.slice(1)
