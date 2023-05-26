@@ -60,6 +60,7 @@ const spAttGradeId = spAttGradeFileAccess.getId()
 const spAttGradeAccess = SpreadsheetApp.openById(spAttGradeId)
 
 // sheets of "att_gradeSpName"
+const ssAttWbx = spAttGradeAccess.getSheetByName('ASIST-WEBEX')
 const ssDkc = spAttGradeAccess.getSheetByName('d-kc')
 const ssKc = spAttGradeAccess.getSheetByName('KC')
 const ssUpdateKc = spAttGradeAccess.getSheetByName('UPDATE-KC');
@@ -250,10 +251,12 @@ function updateAttendanceAndGrade() {
   /*---------------------------------------------------------------------------*/
   var arrayStData = []
   var arrayKcData = []
+
   var ssGradeLast = spGradeAccess.getSheets()[1]
   var arrayGradeData = ssGradeLast.getDataRange().getValues()
-  var arrayKcData2 = arrayGradeData.slice(2)
+  var arrayKcTempData2 = arrayGradeData.slice(2)
 
+  // student data
   for (let i = 0; i < arrayGradeData.length; i++) {
     var familyName = arrayGradeData[i][0].replace(/(^.*), (.*$)/, "$1")
     var firstName = arrayGradeData[i][0].replace(/(^.*), (.*$)/, "$2")
@@ -264,12 +267,12 @@ function updateAttendanceAndGrade() {
   arrayStData.splice(0, 2, [['family Name'], ['first Name'], ['student Id'], ['student Email']])
   arrayStData.pop()
 
-  for (let i = 0; i < arrayKcData2.length; i++) {
-    var row = arrayKcData2[i].slice(6)
+  for (let i = 0; i < arrayKcTempData2.length; i++) {
+    var row = arrayKcTempData2[i].slice(6)
     arrayKcData.push(row)
   }
 
-  var numStud = arrayStData.length - 1
+  var numStud = arrayStData.slice(1).length
 
   for (i = 0; i < spNames.length; i++) {
     var spFullId = DriveApp.getFilesByName(spNames[i]).next().getId()
@@ -302,7 +305,7 @@ function updateAttendanceAndGrade() {
     sheetNames.push([''])
     sheetNames.splice(sheetNames.indexOf('Report'), 1)
     ssReport.getRange(1, 5, 1, sheetNames.length).setValues([sheetNames])
-    console.log('sheetNames :'+ sheetNames)
+    console.log('sheetNames :' + sheetNames)
     //else {ssReport.getRange(1, 5, 1, sheetNames.length).setValues([sheetNames])}
   }
   //  MESSAGE FOR USER
@@ -324,18 +327,18 @@ function updateAttendanceAndGrade() {
     //ssDateName.splice(0)
   }
   ssDateName.splice(ssDateName.indexOf('Report'), 1)
-  console.log('ssDateName '+ssDateName )
-/*
-  var reportHeaderRange = ssReportAttAccess.getRange(1, 5, 1, ssDateName.length)
-  reportHeaderRange.setValues([ssDateName])
-
-  console.log(reportHeaderRange)
-*/
+  console.log('ssDateName ' + ssDateName)
+  /*
+    var reportHeaderRange = ssReportAttAccess.getRange(1, 5, 1, ssDateName.length)
+    reportHeaderRange.setValues([ssDateName])
+  
+    console.log(reportHeaderRange)
+  */
   for (var i = 0; i < ssDateName.length; i++) {
 
     var emails = {}
-    var dte = ssDateName[i] //name of a sheet
-    var ssAccess = spAttAccess.getSheetByName(dte) // Sheet access by your name
+    var ssNameAtt = ssDateName[i] //name of a sheet
+    var ssAccess = spAttAccess.getSheetByName(ssNameAtt) // Sheet access by your name
     var ssAccessReport = spAttAccess.getSheetByName('Report') // Sheet access by your name
 
     // ------------------------------------------------------ Array with data in everyone sheet
@@ -356,7 +359,7 @@ function updateAttendanceAndGrade() {
 
     }
 
-    Object.assign(course, { [dte]: emails })
+    Object.assign(course, { [ssNameAtt]: emails })
     var reportEmails = ssAccessReport.getRange(2, 4, ssAccessReport.getLastRow() - 1, 1).getValues()
 
     var clearColumn = ssAccessReport.getRange(2, i + 1 + 4, ssAccessReport.getLastRow() - 1, 1).clearContent()
@@ -366,8 +369,8 @@ function updateAttendanceAndGrade() {
 
       var eMail = reportEmails[k][0]
 
-      if (course[dte][eMail]) {
-        var sTList = Object.keys(course[dte][eMail]).sort()
+      if (course[ssNameAtt][eMail]) {
+        var sTList = Object.keys(course[ssNameAtt][eMail]).sort()
         ssAccessReport.getRange(k + 2, i + 1 + 4).setValue(1)
       } else {
         ssAccessReport.getRange(k + 2, i + 1 + 4).setValue(0)
@@ -375,39 +378,39 @@ function updateAttendanceAndGrade() {
 
     }
   }
-  spAttGradeAccess.getSheetByName('ASIST-WEBEX')
-    .getRange(1, 1, arrayStData.length, arrayStData[0].length)
-    .setValues(arrayStData)
-  spAttGradeAccess.getSheetByName('ASIST-WEBEX')
-    .getRange(1, 8, rangeDataReport.length, rangeDataReport[0].length)
-    .setValues(rangeDataReport)
+  // WEBEX : delete old data of students
+  ssAttWbx.getRange(1, 1, ssAttWbx.getLastRow(), arrayStData[0].length).clearContent()
+  // WEBEX : loading new data of students
+  ssAttWbx.getRange(1, 1, arrayStData.length, arrayStData[0].length).setValues(arrayStData)
+  // WEBEX : delete old data of attendance
+  ssAttWbx.getRange(1, 8, ssAttWbx.getLastRow(), ssAttWbx.getLastColumn()).clearContent()
+  // WEBEX : loading new data of attendance
+  ssAttWbx.getRange(1, 8, rangeDataReport.length, rangeDataReport[0].length).setValues(rangeDataReport)
 
-  spAttGradeAccess.getSheetByName('KC').getRange(1, 1, arrayStData.length, arrayStData[0].length).setValues(arrayStData)
+  console.log('rangeDataReport ' + rangeDataReport)
 
+  // row of possiblePoints
+  var pPoints = ssKc.getRange(ssKc.getLastRow(), 1, 1, ssKc.getLastColumn()).getValues()
+
+  console.log('copy pPoints ' + pPoints)
+
+  // KC : delete old data of students
+  ssKc.getRange(1, 1, numStud, arrayStData[0].length).clearContent()
+  // KC : loading new data of students
+  ssKc.getRange(1, 1, arrayStData.length, arrayStData[0].length).setValues(arrayStData)
+  // KC : delete old data of student's grades
+  ssKc.getRange(2, 10, ssKc.getLastRow(), arrayKcData[0].length).clearContent()
+  // KC : loading new data of student's grades
+  ssKc.getRange(2, 10, arrayKcData.length, arrayKcData[0].length).setValues(arrayKcData)
+
+  // insert copy possiblePoints row
+  ssKc.getRange(ssKc.getLastRow(), 1, 1, ssKc.getLastColumn()).setValues(pPoints)
+  console.log('insert pPoints ' + pPoints)
+
+  // d-kc : delete old data
   ssDkc.clearContents()
-
+  // d-kc : loading new data
   ssDkc.getRange(1, 1, arrayGradeData.length, arrayGradeData[0].length).setValues(arrayGradeData)
-
-  /* if (arrayGradeData.slice(-0, 1) == 'prueba, Estudiante de') {
-     arrayGradeData.pop()
-   }
- 
-   if (arrayGradeData.slice(0, 1)[0] == 'Points Possible') {
-     var pPossible = arrayGradeData.slice(1, 1)
-     arrayGradeData.splice(1, 1)
-   }
-   if (arrayGradeData[0][0] == 'Student') {
-     arrayGradeData.splice(0, 1)
-   }
- 
-   arrayGradeData.push(pPossible)
- 
-   for (let i = 0; i < arrayGradeData.length; i++) {
-     console.log('arrayGradeData[' + i + ']= ' + arrayGradeData[i])
-   }*/
-
-  var dataKc = ssKc.getRange(2, 10, arrayKcData.length, arrayKcData[0].length)
-  dataKc.setValues(arrayKcData)
 
   var ssGradeLastName = ssGradeLast.getName()
   ssKc.getRange(1, 2).setValue(ssGradeLastName)
@@ -577,8 +580,6 @@ function informeAcademico() {
     Object.assign(instructorRole, { [iEmail]: iRole })
   }
 
-  var body = dataRangeBody[0][1]
-
   var signature = dataRangeSignature[0][1]
   signature = signature.replace("{{instructorName[email_prof]}}", instructorName[email_prof])
   signature = signature.replace("{{instructorLinkedin[email_prof]}}", instructorLinkedin[email_prof])
@@ -593,12 +594,13 @@ function informeAcademico() {
   dataRangeUPDATEKC.forEach(
 
     function crearMensaje(value) {
+      var body = dataRangeBody[0][1]
       var variable = {}
       /*VARIABLES DENTRO DEL E-MAIL */
       for (let i = 0; i < variableName.length; i++) {
         if (i == 1) {
-          Object.assign(variable, { "{{student}}": value[1].toString().toUpperCase() })
-          body = body.replace([variableName[i]], value[1].toString().toUpperCase())
+          Object.assign(variable, { "{{student}}": value[i].toString().toUpperCase() })
+          body = body.replace([variableName[i]], value[i].toString().toUpperCase())
         } else {
           Object.assign(variable, { [variableName[i]]: value[i] })
           body = body.replace([variableName[i]], value[i])
@@ -611,7 +613,7 @@ function informeAcademico() {
 
       var new_subject = "Informe Académico " + variable["{{student}}"] + " - AWS re/Start " + courseName;
       var empty_msj = "";
-      var ccemail = "aaorange75@gmail.com"
+      var ccemail = "potrerodigital@compromiso.org"
 
       MailApp.sendEmail({
         to: variable["{{email}}"],
