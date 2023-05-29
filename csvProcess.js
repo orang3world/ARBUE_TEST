@@ -613,7 +613,7 @@ function informeAcademico() {
 
       var new_subject = "Informe Académico " + variable["{{student}}"] + " - AWS re/Start " + courseName;
       var empty_msj = "";
-      var ccemail = "potrerodigital@compromiso.org"
+      var ccemail = "ariel.orange@compromiso.org"
 
       MailApp.sendEmail({
         to: variable["{{email}}"],
