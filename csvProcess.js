@@ -614,14 +614,15 @@ function informeAcademico() {
       var new_subject = "Informe Académico " + variable["{{student}}"] + " - AWS re/Start " + courseName;
       var empty_msj = "";
       var ccemail = "ariel.orange@compromiso.org"
-
-      MailApp.sendEmail({
-        to: variable["{{email}}"],
-        cc: ccemail,
-        subject: new_subject,
-        body: empty_msj,
-        htmlBody: body
-      });
+      /*
+            MailApp.sendEmail({
+              to: variable["{{email}}"],
+              cc: ccemail,
+              subject: new_subject,
+              body: empty_msj,
+              htmlBody: body
+            });
+            */
     }
   )
   //  MESSAGE FOR USER
